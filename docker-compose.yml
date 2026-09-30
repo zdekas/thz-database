@@ -1,0 +1,99 @@
+# Database users (see backend/thz/db.py):
+#   thz           owner, only used by `init` and `backup`
+#   thz_importer  read/write raw
+#   thz_analysis  read-only raw, read/write analysed
+#   thz_web       read-only raw + analysed
+#   thz_auth      accounts and login sessions only
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: thz
+      POSTGRES_USER: thz
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thz_dev_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thz -d thz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # creates schemas, users and grants; runs on every `up`, safe to repeat
+  init:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL_ADMIN: postgresql://thz:${POSTGRES_PASSWORD:-thz_dev_password}@db:5432/thz
+      IMPORTER_PASSWORD: ${IMPORTER_PASSWORD:-importer_dev_password}
+      ANALYSIS_PASSWORD: ${ANALYSIS_PASSWORD:-analysis_dev_password}
+      WEB_PASSWORD: ${WEB_PASSWORD:-web_dev_password}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-auth_dev_password}
+    volumes:
+      - ./backend/thz:/app/thz
+    command: ["thz", "init-db"]
+
+  web:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      # public pages use only the read-only user; the others are used by the
+      # logged-in "add record" area (importer writes raw, analysis writes analysed)
+      DATABASE_URL_WEB: postgresql://thz_web:${WEB_PASSWORD:-web_dev_password}@db:5432/thz
+      DATABASE_URL_AUTH: postgresql://thz_auth:${AUTH_PASSWORD:-auth_dev_password}@db:5432/thz
+      DATABASE_URL_IMPORTER: postgresql://thz_importer:${IMPORTER_PASSWORD:-importer_dev_password}@db:5432/thz
+      DATABASE_URL_ANALYSIS: postgresql://thz_analysis:${ANALYSIS_PASSWORD:-analysis_dev_password}@db:5432/thz
+      # set to 1 once the site is served over HTTPS
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+    ports:
+      - "${WEB_PORT:-8050}:8000"
+    volumes:
+      # code is mounted, so an analysis update is picked up without rebuilding
+      - ./backend/thz:/app/thz
+      # original files of records created through the website are kept here
+      - ./data/uploads:/data/uploads
+
+  # docker compose run --rm tools import /data/incoming
+  tools:
+    build: ./backend
+    profiles: ["tools"]
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL_IMPORTER: postgresql://thz_importer:${IMPORTER_PASSWORD:-importer_dev_password}@db:5432/thz
+      DATABASE_URL_ANALYSIS: postgresql://thz_analysis:${ANALYSIS_PASSWORD:-analysis_dev_password}@db:5432/thz
+      DATABASE_URL_WEB: postgresql://thz_web:${WEB_PASSWORD:-web_dev_password}@db:5432/thz
+      DATABASE_URL_AUTH: postgresql://thz_auth:${AUTH_PASSWORD:-auth_dev_password}@db:5432/thz
+    volumes:
+      - ./backend/thz:/app/thz
+      - ./data:/data
+    entrypoint: ["thz"]
+
+  # docker compose run --rm backup
+  backup:
+    image: postgres:17
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-thz_dev_password}
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        f=/backups/thz_$$(date -u +%Y%m%d_%H%M%S).dump
+        pg_dump -h db -U thz -d thz -Fc -f "$$f" && echo "wrote $$f ($$(du -h "$$f" | cut -f1))"
+
+volumes:
+  pgdata:

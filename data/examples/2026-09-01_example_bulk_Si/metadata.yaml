@@ -1,0 +1,30 @@
+# slug: unique identifier; defaults to the folder name
+sample_name: SYNTHETIC example - bulk Si wafer
+experiment_date: 2026-09-01
+responsible_person: Example Person
+added_by: Example Person
+description: >
+  Simulated data. Bulk high-resistivity silicon, reference is an air scan.
+  One long scan that contains the internal echoes.
+sample_type: bulk            # bulk | thin_film
+reference_type: air          # air | substrate
+material: Si
+thickness_nm: 500000          # sample thickness in nm
+treatment: none
+temperature_K: 300
+source:                      # experiment parameters, all optional, free text
+  laser: Pharos Standard
+  rep_rate: 10kHz
+  attenuation: 100%
+  thz_source: 2mm GaP
+  pump_power: 500mW
+  focusing: Collimated
+  thz_detection: 2mm GaP
+  probe_power: 700uW
+waveforms:
+  - {role: reference, file: reference.txt}
+  - {role: sample, file: sample.txt}
+# role: reference | sample | reference_echo | sample_echo
+# optional per waveform: label (default main), time_unit (fs|ps|ns|s),
+# time_column (default 0), amplitude_column (default 1)
+# files from the lab LabVIEW program are recognised automatically

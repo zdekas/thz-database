@@ -1,0 +1,20 @@
+sample_name: SYNTHETIC example - conducting film on sapphire
+experiment_date: 2026-09-12
+responsible_person: Example Person
+added_by: Example Person
+description: Simulated data. Drude-like thin film, reference is the bare substrate. Echoes scanned separately.
+sample_type: thin_film
+reference_type: substrate
+material: metal film
+substrate: sapphire
+thickness_nm: 50
+substrate_thickness_um: 500
+treatment: annealed 400 C
+temperature_K: 10
+source:
+  thz_source: photoconductive antenna
+waveforms:
+  - {role: reference, file: substrate.txt}
+  - {role: sample, file: film.txt}
+  - {role: reference_echo, file: substrate_echo.txt}
+  - {role: sample_echo, file: film_echo.txt}

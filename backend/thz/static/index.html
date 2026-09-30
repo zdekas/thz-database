@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>THz transmission database</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <aside>
+    <input id="search" type="search" placeholder="Search samples: material, person, date, 300 K …" autocomplete="off" autofocus>
+    <div id="lists">
+      <h2 id="selected-title" hidden>Selected <button id="clear" type="button">clear</button></h2>
+      <ul id="selected"></ul>
+      <h2 id="results-title">Samples</h2>
+      <ul id="results"></ul>
+    </div>
+  </aside>
+  <main>
+    <div class="toolbar">
+      <div class="group" id="x-axis"><span>x</span></div>
+      <div class="group" id="y-axis"><span>y</span></div>
+      <label class="check"><input id="full" type="checkbox"> full spectrum</label>
+      <span class="spacer"></span>
+      <a id="edit" hidden>Edit record</a>
+      <a id="account" href="/login">Log in</a>
+    </div>
+    <div id="plot"><p id="empty">Select one or more samples on the left.</p></div>
+    <div class="toolbar downloads">
+      <button id="download" type="button" disabled>Download as shown (.txt)</button>
+      <span class="sep"></span>
+      <label for="interp">x =</label>
+      <input id="interp" type="text" spellcheck="false" value="np.linspace(0.2, 3, 100)">
+      <span id="interp-unit"></span>
+      <button id="download-interp" type="button" disabled>Download interpolated (.txt)</button>
+      <span id="message" role="alert"></span>
+    </div>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

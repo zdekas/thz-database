@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+backups/*.dump
+initial-password-*.txt
+data/uploads/
+.DS_Store
+.claude/settings.local.json

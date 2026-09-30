@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Add record – THz transmission database</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body class="page">
+  <header class="topbar">
+    <a href="/">← Database</a>
+    <span class="spacer"></span>
+    <span id="who"></span>
+    <button id="change-password" type="button" class="link">Change password</button>
+    <button id="logout" type="button" class="link">Log out</button>
+  </header>
+
+  <form id="record" class="card" hidden>
+    <h1 id="title">Add record</h1>
+    <p id="edited-note" class="note" hidden></p>
+
+    <p class="hint">
+      Fill in the form, or
+      <label class="filelink">load a metadata file<input id="meta-file" type="file" accept=".yaml,.yml,.txt"></label>
+      (<code>metadata.yaml</code>) to fill it in for you.
+      <span id="meta-message"></span>
+    </p>
+
+    <h2>Sample</h2>
+    <div class="grid">
+      <label class="wide">Sample name * <input id="f-sample_name" required></label>
+      <label>Sample type *
+        <select id="f-sample_type" required>
+          <option value="thin_film">thin film</option>
+          <option value="bulk">bulk</option>
+        </select>
+      </label>
+      <label>Material i.e. CoFe [5nm] | Pt [2nm] <input id="f-material"></label>
+      <label>Thickness (nm) <input id="f-thickness_nm" type="number" step="any" min="0"></label>
+      <label>Reference *
+        <select id="f-reference_type" required>
+          <option value="substrate">bare substrate</option>
+          <option value="air">air scan</option>
+        </select>
+      </label>
+      <label>Substrate <input id="f-substrate"></label>
+      <label>Substrate thickness (µm) <input id="f-substrate_thickness_um" type="number" step="any" min="0"></label>
+      <label>Temperature (K) <input id="f-temperature_K" type="number" step="any" min="0"></label>
+      <label class="three">Treatment <input id="f-treatment"></label>
+    </div>
+
+    <h2>Experiment <button id="fill-typical" type="button" class="link">Fill empty fields with typical values</button></h2>
+    <div class="grid">
+      <label>Experiment date * <input id="f-experiment_date" type="date" required></label>
+      <label class="three">Responsible person * <input id="f-responsible_person" required></label>
+    </div>
+    <div class="grid even" id="source-fields"></div>
+    <div class="grid">
+      <label class="wide">Other experiment details <textarea id="f-description" rows="3"></textarea></label>
+      <label class="wide">Other parameters <textarea id="f-extra" rows="2" placeholder="one per line, key: value"></textarea></label>
+      <label class="wide">Identifier <input id="f-slug" pattern="[A-Za-z0-9._\-]+" placeholder="optional – made from date and sample name when empty"></label>
+    </div>
+
+    <h2>Waveforms</h2>
+    <p class="hint">A reference and a sample waveform are required; add the echo scans if you have them. Files from the lab LabVIEW program are recognised automatically: the averaged <code>x (V)</code> against <code>delay (ps)</code> is imported.</p>
+    <div id="waveforms"></div>
+    <button id="add-waveform" type="button">+ Add waveform</button>
+
+    <p id="message" class="error" role="alert"></p>
+    <div class="actions">
+      <button class="primary" id="save" type="submit">Save record</button>
+      <span class="hint">Added by: <span id="added-by"></span></span>
+    </div>
+
+    <div id="history" hidden>
+      <h2>Edit history</h2>
+      <p class="hint">Every edit keeps the complete previous version (metadata and waveforms) in the database. This history is shown only here.</p>
+      <ul id="history-list"></ul>
+    </div>
+  </form>
+
+  <div id="done" class="card" hidden>
+    <h1 id="done-title">Record saved</h1>
+    <p>Saved as <code id="done-slug"></code> and analysed.</p>
+    <div class="actions">
+      <a class="button primary" id="done-view" href="/">Show in graph</a>
+      <a class="button" id="done-again" href="/new">Add another record</a>
+    </div>
+  </div>
+
+  <dialog id="password-dialog">
+    <form id="password-form">
+      <h2>Change password</h2>
+      <label>Current password <input id="pw-current" type="password" autocomplete="current-password" required></label>
+      <label>New password (at least 10 characters) <input id="pw-new" type="password" autocomplete="new-password" minlength="10" required></label>
+      <p id="pw-message" class="error" role="alert"></p>
+      <div class="actions">
+        <button class="primary" type="submit">Change</button>
+        <button type="button" id="pw-cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="treat-dialog">
+    <h2 id="treat-title"></h2>
+    <div class="treat">
+      <div class="treat-controls">
+        <fieldset>
+          <legend><label class="inline"><input type="checkbox" id="t-baseline-on"> 1 · Baseline subtraction</label></legend>
+          <p class="hint">Subtracts the mean of the signal in this range (green).</p>
+          <div class="pair">
+            <label>from (ps) <input type="number" step="any" id="t-baseline-from"></label>
+            <label>to (ps) <input type="number" step="any" id="t-baseline-to"></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend><label class="inline"><input type="checkbox" id="t-trim-on"> 2 · Trimming</label></legend>
+          <p class="hint">Keeps only the data between the dashed lines.</p>
+          <div class="pair">
+            <label>from (ps) <input type="number" step="any" id="t-trim-from"><input type="range" id="t-trim-from-s"></label>
+            <label>to (ps) <input type="number" step="any" id="t-trim-to"><input type="range" id="t-trim-to-s"></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend><label class="inline"><input type="checkbox" id="t-apod-on"> 3 · Apodization</label></legend>
+          <p class="hint">Window (orange) spans centre ± width.</p>
+          <div class="pair">
+            <label>centre (ps) <input type="number" step="any" id="t-apod-centre"><input type="range" id="t-apod-centre-s"></label>
+            <label>width (ps) <input type="number" step="any" min="0" id="t-apod-width"><input type="range" id="t-apod-width-s"></label>
+          </div>
+          <button type="button" class="link" id="t-peak">Centre on the detected peak</button>
+        </fieldset>
+      </div>
+      <div class="treat-plots">
+        <div id="treat-time"></div>
+        <div id="treat-fft"></div>
+      </div>
+    </div>
+    <p class="hint">Grey: as measured. Blue: after treatment. The green and orange bands and the dashed lines can be dragged in the left plot. The measured data stay unchanged in the database; only these settings are stored and applied in the analysis.</p>
+    <p id="treat-message" class="error" role="alert"></p>
+    <div class="actions">
+      <button type="button" class="primary" id="treat-apply">Apply</button>
+      <button type="button" id="treat-cancel">Cancel</button>
+      <button type="button" class="link" id="treat-clear">Remove all treatment</button>
+    </div>
+  </dialog>
+
+  <dialog id="version-dialog">
+    <h2 id="version-title"></h2>
+    <table id="version-table"></table>
+    <div class="actions"><button type="button" id="version-close">Close</button></div>
+  </dialog>
+
+  <script src="/static/new.js"></script>
+  <script src="/static/treat.js"></script>
+</body>
+</html>
