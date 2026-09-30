@@ -5,6 +5,7 @@
 #   thz_web       read-only raw + analysed
 #   thz_auth      accounts and login sessions only
 
+# init, web and tools run the same image (thz-database-backend), built from ./backend
 services:
   db:
     image: postgres:17
@@ -23,6 +24,7 @@ services:
 
   # creates schemas, users and grants; runs on every `up`, safe to repeat
   init:
+    image: thz-database-backend
     build: ./backend
     depends_on:
       db:
@@ -38,6 +40,7 @@ services:
     command: ["thz", "init-db"]
 
   web:
+    image: thz-database-backend
     build: ./backend
     restart: unless-stopped
     depends_on:
@@ -62,6 +65,7 @@ services:
 
   # docker compose run --rm tools import /data/incoming
   tools:
+    image: thz-database-backend
     build: ./backend
     profiles: ["tools"]
     depends_on:
